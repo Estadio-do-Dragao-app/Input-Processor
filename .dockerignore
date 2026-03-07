@@ -1,0 +1,10 @@
+.venv/
+venv/
+.git/
+__pycache__/
+*.pyc
+outputs/
+*.mp4
+*.avi
+logs/
+.DS_Store
