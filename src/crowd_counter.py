@@ -4,12 +4,26 @@ import time
 import onnxruntime as ort
 from ultralytics import YOLO
 
+class TemporalSmoother:
+    """Suavização temporal usando Média Móvel Exponencial (EMA)"""
+    def __init__(self, alpha=0.3):
+        self.alpha = alpha
+        self.smoothed_val = None
+
+    def update(self, val):
+        if self.smoothed_val is None:
+            self.smoothed_val = float(val)
+        else:
+            self.smoothed_val = self.alpha * val + (1 - self.alpha) * self.smoothed_val
+        return self.smoothed_val
+
 class CrowdCounter:
     def __init__(self, mode="yolo", model_path="model/zip_n_model_quant.onnx", yolo_model="yolov8n.pt"):
         """
         Initializes CrowdCounter in either 'yolo' or 'density' mode.
         """
         self.mode = mode
+        self.smoother = TemporalSmoother(alpha=0.4) # Alpha p/ equilibrar latência e estabilidade
         print(f"🚀 Initializing CrowdCounter in [{self.mode.upper()}] mode...")
         
         if self.mode == "yolo":
@@ -58,8 +72,8 @@ class CrowdCounter:
         """Fast inference using ONLY YOLO."""
         if frame is None: return None, 0
         
-        # 1. Run YOLO
-        results = self.model.predict(frame, classes=[0], verbose=False)
+        # 1. Run YOLO with high-res processing and lower confidence threshold to catch small people
+        results = self.model.predict(frame, classes=[0], imgsz=1280, conf=0.15, verbose=False)
         
         # 2. Extract
         result = results[0]
@@ -82,6 +96,9 @@ class CrowdCounter:
             cur_sum = np.sum(density_map)
             if cur_sum > 0:
                 density_map = density_map * (count / cur_sum)
+        
+        # 4. Apply Smoothing
+        count = self.smoother.update(count)
         
         return density_map, count, boxes
 
@@ -109,5 +126,8 @@ class CrowdCounter:
         # Resize to original frame size for consistency?
         # Actually main.py handles resizing for viz. 
         # But we should return the raw map.
+        
+        # 3. Apply Smoothing
+        count = self.smoother.update(count)
         
         return dmap, count
