@@ -17,14 +17,10 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     && rm -rf /var/lib/apt/lists/*
 
-# Cache ML Libraries explicitly
-RUN pip install --no-cache-dir paho-mqtt opencv-python-headless numpy pydantic onnxruntime ultralytics
+# Cache essential libraries for GPS Processing
+RUN pip install --no-cache-dir paho-mqtt pydantic pyproj
 
-# Copy requirements
-COPY requirements.txt* /app/
-RUN if [ -f /app/requirements.txt ]; then pip install --no-cache-dir -r /app/requirements.txt; fi
-
-# Copy service code (this invalidates cache only for changes below this line)
+# Copy service code
 COPY . /app/
 
 WORKDIR /app/src
