@@ -4,6 +4,8 @@ import argparse
 import time
 import sys
 from pathlib import Path
+import threading
+import paho.mqtt.client as mqtt
 
 # Importar módulos locais
 try:
@@ -33,6 +35,7 @@ def main():
     parser.add_argument('--no-mqtt', action='store_true', help='Disable MQTT publishing')
     parser.add_argument('--mode', type=str, default='yolo', choices=['yolo', 'density'], help='Detection mode: yolo or density')
     parser.add_argument('--headless', action='store_true', help='Disable OpenCV GUI window')
+    parser.add_argument('--subscribe-topic', type=str, default='', help='If provided, listen to this MQTT topic for JPEG camera frames instead of USB.')
     args = parser.parse_args()
     
     # Print configuration
@@ -79,23 +82,81 @@ def main():
             print("   Continuando sem MQTT...")
             publisher = None
 
-    # 3. Start Camera
-    cap = cv2.VideoCapture(0)
+    # 2.5 Start MQTT Camera Receiver (Optional)
+    latest_mqtt_frame = None
+    mqtt_frame_lock = threading.Lock()
+    camera_mqtt_client = None
+
+    if args.subscribe_topic:
+        def on_camera_message(client, userdata, msg):
+            nonlocal latest_mqtt_frame
+            try:
+                np_arr = np.frombuffer(msg.payload, np.uint8)
+                decoded = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                if decoded is not None:
+                    with mqtt_frame_lock:
+                        latest_mqtt_frame = decoded
+            except Exception as e:
+                pass # Ignore malformed frames silently to prevent log spam
+                
+        print(f"📡 Configurando receção de vídeo MQTT no tópico: {args.subscribe_topic}")
+        import uuid
+        camera_mqtt_client = mqtt.Client(client_id=f"cam_listener_{uuid.uuid4().hex[:6]}")
+        camera_mqtt_client.on_message = on_camera_message
+        
+        try:
+            camera_mqtt_client.connect(args.mqtt_broker, args.mqtt_port, 60)
+            camera_mqtt_client.subscribe(args.subscribe_topic, qos=0)
+            camera_mqtt_client.loop_start()
+            print("✅ Ligado ao stream de vídeo MQTT com sucesso!")
+        except Exception as e:
+            print(f"❌ Erro ao ligar ao stream MQTT: {e}")
+            camera_mqtt_client = None
+
+    # 3. Start Camera (Try physical webcam, fallback to test image loop)
+    # If MQTT is enabled, skip local USB lookup
+    cap = None
+    is_mock = False
+    mock_image_path = None
     
-    if not cap.isOpened():
-        print("❌ Não foi possível abrir a webcam")
-        return 1
-    
-    print("▶️  Câmera iniciada. Pressiona 'q' para sair")
+    if camera_mqtt_client is None:
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("⚠️  Não foi possivel abrir a webcam física (/dev/video0).")
+            print("🔧 Iniciando modo SIMULAÇÃO com imagem de teste (yolo_1280.jpg)...")
+            mock_image_path = Path(__file__).parent.parent / "yolo_1280.jpg"
+            if not mock_image_path.exists():
+                print(f"❌ Imagem de teste {mock_image_path} não encontrada. Abortando.")
+                return 1
+            is_mock = True
+        else:
+            print("▶️  Câmera física iniciada.")
+    else:
+        print(f"▶️  À espera de imagens MQTT em: {args.subscribe_topic}")
+        
     print()
     
     last_publish_time = 0
     frame_count = 0
     
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret: 
-            break
+    while True:
+        if camera_mqtt_client:
+            with mqtt_frame_lock:
+                frame = latest_mqtt_frame.copy() if latest_mqtt_frame is not None else None
+            if frame is None:
+                time.sleep(0.1)
+                continue
+        elif is_mock:
+            frame = cv2.imread(str(mock_image_path))
+            if frame is None:
+                print("❌ Falha crítica ao ler a imagem de teste.")
+                break
+            time.sleep(1) # Simulate 1 fps in mock mode to avoid CPU spin
+        else:
+            ret, frame = cap.read()
+            if not ret: 
+                print("⚠️ Falha ao ler frame da webcam.")
+                break
 
         # 4. SINGLE INFERENCE POINT
         # Process frame creates density map and count
@@ -167,13 +228,27 @@ def main():
 
         frame_count += 1
 
-    cap.release()
+    # Release camera resource if it was initialized
+    if cap is not None and hasattr(cap, "isOpened") and cap.isOpened():
+        cap.release()
+
     if not args.headless:
         cv2.destroyAllWindows()
     
-    # Disconnect MQTT
+    # Disconnect MQTT publishers
     if publisher:
         publisher.disconnect()
+
+    # Disconnect MQTT camera client (if used)
+    if camera_mqtt_client is not None:
+        try:
+            camera_mqtt_client.loop_stop()
+        except Exception:
+            pass
+        try:
+            camera_mqtt_client.disconnect()
+        except Exception:
+            pass
     
     print("\n✅ Aplicação encerrada")
     return 0
