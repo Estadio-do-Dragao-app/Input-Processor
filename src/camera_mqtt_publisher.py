@@ -13,7 +13,12 @@ import paho.mqtt.client as mqtt
 # --- Unified Schema (Local Copy for byte-compatibility) ---
 class CrowdDensityEvent:
     @staticmethod
-    def create(camera_id, level, grid_data, total_people):
+    def create(camera_id, level, grid_data, total_people, coordinate_unit=None):
+        # Allow callers (e.g., per-camera publishers) to explicitly specify the
+        # coordinate unit based on the actual calibration state for that camera.
+        # Fall back to the previous behavior if not provided.
+        if coordinate_unit is None:
+            coordinate_unit = "meters" if CALIBRATION_AVAILABLE else "pixels"
         return {
             "event_id": str(uuid.uuid4()),
             "event_type": "crowd_density",
@@ -23,7 +28,7 @@ class CrowdDensityEvent:
             "total_people": int(total_people),
             "metadata": {
                 "camera_id": camera_id,
-                "coordinate_unit": "meters" if CALIBRATION_AVAILABLE else "pixels"
+                "coordinate_unit": coordinate_unit
             }
         }
 
