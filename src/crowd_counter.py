@@ -18,12 +18,22 @@ class TemporalSmoother:
         return self.smoothed_val
 
 class CrowdCounter:
-    def __init__(self, mode="yolo", model_path="model/zip_n_model_quant.onnx", yolo_model="yolov8n.pt"):
+    def __init__(self, mode="yolo", model_path="model/zip_n_model_quant.onnx",
+                 yolo_model="yolov8n.pt", yolo_imgsz=1280, yolo_conf=0.15):
         """
         Initializes CrowdCounter in either 'yolo' or 'density' mode.
+
+        YOLO-specific parameters:
+            yolo_imgsz (int): Inference image size. Larger values improve small-person detection
+                but increase CPU/GPU cost (default: 1280, tuned for accuracy).
+            yolo_conf (float): Confidence threshold. Lower values detect more people (including
+                smaller / harder cases) but can add noise and cost (default: 0.15).
         """
         self.mode = mode
         self.smoother = TemporalSmoother(alpha=0.4) # Alpha p/ equilibrar latência e estabilidade
+        # Store YOLO inference settings so deployments can tune accuracy vs. performance
+        self.yolo_imgsz = yolo_imgsz
+        self.yolo_conf = yolo_conf
         print(f"🚀 Initializing CrowdCounter in [{self.mode.upper()}] mode...")
         
         if self.mode == "yolo":
@@ -72,8 +82,14 @@ class CrowdCounter:
         """Fast inference using ONLY YOLO."""
         if frame is None: return None, 0
         
-        # 1. Run YOLO with high-res processing and lower confidence threshold to catch small people
-        results = self.model.predict(frame, classes=[0], imgsz=1280, conf=0.15, verbose=False)
+        # 1. Run YOLO with configurable resolution & confidence (defaults favor small-person detection)
+        results = self.model.predict(
+            frame,
+            classes=[0],
+            imgsz=self.yolo_imgsz,
+            conf=self.yolo_conf,
+            verbose=False,
+        )
         
         # 2. Extract
         result = results[0]
