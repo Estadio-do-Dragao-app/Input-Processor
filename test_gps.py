@@ -24,7 +24,7 @@ def create_client():
 
 def main():
     client = create_client()
-    print(f"📡 Connectado mock a {MQTT_BROKER}:{MQTT_PORT} no tópico {TOPIC}")
+    print(f"📡 Conectado mock a {MQTT_BROKER}:{MQTT_PORT} no tópico {TOPIC}")
     
     try:
         while True:
