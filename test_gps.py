@@ -20,6 +20,7 @@ BASE_LNG = -8.5836
 def create_client():
     client = mqtt.Client(client_id=f"gps_mock_{uuid.uuid4().hex[:6]}")
     client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    client.loop_start()
     return client
 
 def main():
@@ -51,6 +52,7 @@ def main():
             
     except KeyboardInterrupt:
         print("\nSaindo...")
+        client.loop_stop()
         client.disconnect()
 
 if __name__ == "__main__":
