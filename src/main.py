@@ -228,13 +228,27 @@ def main():
 
         frame_count += 1
 
-    cap.release()
+    # Release camera resource if it was initialized
+    if cap is not None and hasattr(cap, "isOpened") and cap.isOpened():
+        cap.release()
+
     if not args.headless:
         cv2.destroyAllWindows()
     
-    # Disconnect MQTT
+    # Disconnect MQTT publishers
     if publisher:
         publisher.disconnect()
+
+    # Disconnect MQTT camera client (if used)
+    if camera_mqtt_client is not None:
+        try:
+            camera_mqtt_client.loop_stop()
+        except Exception:
+            pass
+        try:
+            camera_mqtt_client.disconnect()
+        except Exception:
+            pass
     
     print("\n✅ Aplicação encerrada")
     return 0
