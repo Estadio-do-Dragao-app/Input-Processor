@@ -76,11 +76,11 @@ class CrowdCounter:
             return self._process_yolo(frame)
         elif self.mode == "density":
             return self._process_density(frame)
-        return None, 0
+        return None, 0, None
 
     def _process_yolo(self, frame):
         """Fast inference using ONLY YOLO."""
-        if frame is None: return None, 0
+        if frame is None: return None, 0, None
         
         # 1. Run YOLO with configurable resolution & confidence (defaults favor small-person detection)
         results = self.model.predict(
@@ -120,7 +120,7 @@ class CrowdCounter:
 
     def _process_density(self, frame):
         """Standard Density Model inference."""
-        if frame is None: return None, 0
+        if frame is None: return None, 0, None
 
         # Preprocess
         blob = self.preprocess_density(frame)
@@ -146,4 +146,4 @@ class CrowdCounter:
         # 3. Apply Smoothing
         count = self.smoother.update(count)
         
-        return dmap, count
+        return dmap, count, None
