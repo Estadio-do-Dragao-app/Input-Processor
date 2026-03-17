@@ -19,7 +19,7 @@ QUEUE_TOPIC = "stadium/events/queues"
 # user_id -> {"lat": float, "lng": float, "timestamp": float}
 active_users = {}
 USER_TTL_SECONDS = 30
-GRID_RESOLUTION = 10  # Metros
+GRID_RESOLUTION = 0.0001  # Graus (~11 Metros)
 UPDATE_INTERVAL = 10  # Segundos
 
 # Helper para converter Lat/Lng WGS84 para coordenadas cartesianas locais (EPSG:3763 - PT-TM06)
@@ -109,12 +109,17 @@ def aggregate_and_publish(client):
         points_xy = []
         
         for data in active_users.values():
-            x, y = latlng_to_meters(data["lat"], data["lng"])
-            points_xy.append((x, y))
+            # For Queues, use meters if ROIs are defined as such
+            mx, my = latlng_to_meters(data["lat"], data["lng"])
+            points_xy.append((mx, my))
             
-            # Snap to grid cell (Centro da célula)
-            grid_x = (int(x // GRID_RESOLUTION) * GRID_RESOLUTION) + (GRID_RESOLUTION / 2)
-            grid_y = (int(y // GRID_RESOLUTION) * GRID_RESOLUTION) + (GRID_RESOLUTION / 2)
+            x, y = data["lng"], data["lat"]
+            # Snap to grid cell (Centro da célula em graus)
+            grid_x = round(x / GRID_RESOLUTION) * GRID_RESOLUTION
+            grid_y = round(y / GRID_RESOLUTION) * GRID_RESOLUTION
+            # Keep precision to 5 decimal places to prevent float issues
+            grid_x = round(grid_x, 5)
+            grid_y = round(grid_y, 5)
             cell_key = (grid_x, grid_y)
             
             grid_counts[cell_key] = grid_counts.get(cell_key, 0) + 1

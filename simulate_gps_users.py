@@ -11,10 +11,10 @@ GPS_TOPIC = "stadium/location/gps"
 
 # Limites do estádio (aproximados, ajuste conforme necessário)
 # Universidade de Aveiro coordinates (matching gps_processor.py)
-BASE_LAT = 41.1617
-BASE_LNG = -8.5836
-LAT_RANGE = 0.002  # ~220m
-LNG_RANGE = 0.002  # ~170m
+BASE_LAT = 40.6300
+BASE_LNG = -8.6558
+LAT_RANGE = 0.008
+LNG_RANGE = 0.008
 
 # Simulação de utilizadores
 NUM_USERS = 10
