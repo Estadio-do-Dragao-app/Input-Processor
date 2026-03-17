@@ -25,5 +25,5 @@ COPY . /app/
 
 WORKDIR /app/src
 
-# Default command
-CMD ["python", "main.py", "--mqtt-broker", "mosquitto", "--headless"]
+# Default command - Run GPS aggregation processor
+CMD ["python", "gps_processor.py"]

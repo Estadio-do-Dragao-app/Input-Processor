@@ -134,6 +134,7 @@ def aggregate_and_publish(client):
         )
         
         client.publish(CONGESTION_TOPIC, event.model_dump_json(), qos=0)
+        print(f"Published to {CONGESTION_TOPIC}: {len(grid_data)} cells")
         
         # 3. Mapeamento para Queues (ROIs)
         if rois:
