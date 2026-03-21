@@ -13,7 +13,7 @@ import paho.mqtt.client as mqtt
 # --- Unified Schema (Local Copy for byte-compatibility) ---
 class CrowdDensityEvent:
     @staticmethod
-    def create(camera_id, level, grid_data, total_people, coordinate_unit=None):
+    def create(camera_id, level, grid_data, total_people, coordinate_unit=None, **kwargs):
         # Allow callers (e.g., per-camera publishers) to explicitly specify the
         # coordinate unit based on the actual calibration state for that camera.
         # Fall back to the previous behavior if not provided.
@@ -28,7 +28,8 @@ class CrowdDensityEvent:
             "total_people": int(total_people),
             "metadata": {
                 "camera_id": camera_id,
-                "coordinate_unit": coordinate_unit
+                "coordinate_unit": coordinate_unit,
+                "wait_time_sec": kwargs.get("wait_time_sec", 0)
             }
         }
 
@@ -252,7 +253,7 @@ class CameraMQTTPublisher:
         
         return event
     
-    def publish_event_data(self, density_map, count, boxes=None, grid_resolution=10):
+    def publish_event_data(self, density_map, count, boxes=None, grid_resolution=10, wait_time_sec=0):
         """
         Publica os dados de densidade processados externamente.
         
@@ -261,6 +262,7 @@ class CameraMQTTPublisher:
             count: Contagem total já calculada
             boxes: Array the bouding boxes, se existente
             grid_resolution: Resolução para o grid
+            wait_time_sec: Tempo de espera calculado (segundos)
         """
         if not self.mqtt_client or not self.mqtt_connected:
             return False
@@ -270,6 +272,7 @@ class CameraMQTTPublisher:
                 return False
                 
             event = self.generate_crowd_density_event(density_map, count, boxes=boxes, grid_resolution=grid_resolution)
+            event["metadata"]["wait_time_sec"] = int(wait_time_sec)
             
             payload = json.dumps(event, ensure_ascii=False)
             
@@ -279,7 +282,7 @@ class CameraMQTTPublisher:
             print(f"📤 Evento congestion publicado: {int(event['total_people'])} pessoas (camera: {self.camera_id})")
             
             # 2. Publicar eventos de FILA usando as ROIs
-            self._publish_queue_events(boxes)
+            self._publish_queue_events(boxes, wait_time_sec=wait_time_sec)
             
             return True
             
@@ -287,7 +290,7 @@ class CameraMQTTPublisher:
             print(f"❌ Erro ao publicar evento: {e}")
             return False
             
-    def _publish_queue_events(self, boxes):
+    def _publish_queue_events(self, boxes, wait_time_sec=0):
         """Avalia cada bounding box contra os polígonos das filas (ROIs) e publica queue_updates."""
         if not self.rois or boxes is None:
             return
@@ -318,6 +321,7 @@ class CameraMQTTPublisher:
                 "location_id": roi["id"],
                 "queue_length": count,
                 "timestamp": datetime.now().isoformat() + "Z",
+                "wait_time_sec": int(wait_time_sec),
                 "metadata": {
                     "camera_id": self.camera_id
                 }

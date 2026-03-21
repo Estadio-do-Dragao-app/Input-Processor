@@ -12,5 +12,5 @@ dependencies = [
     "paho-mqtt>=1.6.1",
 "pyproj>=3.6.1",
     "pydantic>=2.4.2",
+    "ultralytics>=8.3.0",
 ]
-
