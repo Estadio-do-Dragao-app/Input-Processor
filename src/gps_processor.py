@@ -9,7 +9,7 @@ import paho.mqtt.client as mqtt
 from schemas import CrowdDensityEvent, GridCell, QueueEvent
 
 # Configurações MQTT
-MQTT_BROKER = os.getenv("MQTT_BROKER_HOST", "localhost")
+MQTT_BROKER = os.getenv("MQTT_BROKER_HOST", "10.255.32.58")
 MQTT_PORT = int(os.getenv("MQTT_BROKER_PORT", 1883))
 GPS_TOPIC = "stadium/location/gps"
 CONGESTION_TOPIC = "stadium/events/congestion"
