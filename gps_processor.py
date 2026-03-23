@@ -44,9 +44,9 @@ try:
             # Para o GPS não temos "camera_id", vamos carregar TODAS as ROIs num só nível
             for cam, cam_rois in all_rois.items():
                 rois.extend(cam_rois)
-        print(f"✅ GPS Processor: {len(rois)} ROIs globais carregadas.")
+        print(f"GPS Processor: {len(rois)} ROIs globais carregadas.")
 except Exception as e:
-    print(f"⚠️  GPS Processor: Erro a ler ROIs: {e}")
+    print(f"GPS Processor: Erro a ler ROIs: {e}")
 
 def point_in_polygon(x, y, poly):
     # Baseado em cv2.pointPolygonTest, mas puro Python (ray casting alg)
@@ -67,11 +67,11 @@ def point_in_polygon(x, y, poly):
 
 def on_connect(client, userdata, flags, rc, *args):
     if rc == 0:
-        print(f"✅ GPS Processor: Conectado ao MQTT {MQTT_BROKER}:{MQTT_PORT}")
+        print(f"GPS Processor: Conectado ao MQTT {MQTT_BROKER}:{MQTT_PORT}")
         client.subscribe(GPS_TOPIC)
-        print(f"📡 A escutar: {GPS_TOPIC}")
+        print(f"A escutar: {GPS_TOPIC}")
     else:
-        print(f"❌ GPS Processor: Falha ao conectar (código {rc})")
+        print(f"GPS Processor: Falha ao conectar (código {rc})")
 
 def on_message(client, userdata, msg):
     try:
@@ -102,7 +102,7 @@ def aggregate_and_publish(client):
         if not active_users:
             continue
             
-        print(f"👥 GPS Processor: Agregando {len(active_users)} utilizadores ativos...")
+        print(f"GPS Processor: Agregando {len(active_users)} utilizadores ativos...")
         
         # 2. Mapeamento para Congestion (Grid)
         grid_counts = {}
@@ -158,7 +158,7 @@ def aggregate_and_publish(client):
                     client.publish(QUEUE_TOPIC, q_event.model_dump_json(), qos=0)
 
 if __name__ == "__main__":
-    print("🚀 A Iniciar GPS Processor...")
+    print("A Iniciar GPS Processor...")
     
     # Suporte para paho-mqtt 2.0+
     try:
