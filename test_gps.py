@@ -25,14 +25,14 @@ def create_client():
 
 def main():
     client = create_client()
-    print(f"📡 Conectado mock a {MQTT_BROKER}:{MQTT_PORT} no tópico {TOPIC}")
+    print(f"Conectado mock a {MQTT_BROKER}:{MQTT_PORT} no tópico {TOPIC}")
     
     try:
+        active_this_round = random.sample(USER_IDS, 25)
         while True:
             # Pick a random subset of users to update this tick
-            active_this_round = random.sample(USER_IDS, 25)
-            
             for uid in active_this_round:
+            
                 # Add some random walk variance to base coords
                 # Rough approximation: 0.0001 is ~10 meters
                 lat = BASE_LAT + random.uniform(-0.0005, 0.0005)
@@ -47,7 +47,7 @@ def main():
                 
                 client.publish(TOPIC, json.dumps(payload))
                 
-            print(f"📍 Publicados {len(active_this_round)} eventos GPS falsos.")
+            print(f"Publicados {len(active_this_round)} eventos GPS falsos.")
             time.sleep(2)
             
     except KeyboardInterrupt:
