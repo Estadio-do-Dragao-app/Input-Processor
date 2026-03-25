@@ -5,9 +5,35 @@ Compatível com o formato do Stadium-Event-Generator.
 import json
 import uuid
 import numpy as np
-from datetime import datetime
+import cv2
+import os
+from datetime import datetime, timezone
+import paho.mqtt.client as mqtt
 
-print("🚀 LOADED UPDATED MODULE: camera_mqtt_publisher.py (LIGHTWEIGHT VERSION)")
+# --- Unified Schema (Local Copy for byte-compatibility) ---
+class CrowdDensityEvent:
+    @staticmethod
+    def create(camera_id, level, grid_data, total_people, coordinate_unit=None, **kwargs):
+        # Allow callers (e.g., per-camera publishers) to explicitly specify the
+        # coordinate unit based on the actual calibration state for that camera.
+        # Fall back to the previous behavior if not provided.
+        if coordinate_unit is None:
+            coordinate_unit = "meters" if CALIBRATION_AVAILABLE else "pixels"
+        return {
+            "event_id": str(uuid.uuid4()),
+            "event_type": "crowd_density",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": level,
+            "grid_data": grid_data,
+            "total_people": int(total_people),
+            "metadata": {
+                "camera_id": camera_id,
+                "coordinate_unit": coordinate_unit,
+                "wait_time_sec": kwargs.get("wait_time_sec", 0)
+            }
+        }
+
+print("🚀 LOADED UPDATED MODULE: camera_mqtt_publisher.py (ROI QUEUE CAPABLE)")
 
 # Importar calibração de câmera
 try:
@@ -62,6 +88,20 @@ class CameraMQTTPublisher:
         else:
             self.calibration = None
             print(f"   Calibração: Desativada (coordenadas em pixels)")
+            
+        # Carregar ROIs para Filas
+        self.rois = []
+        roi_path = os.getenv("ROIS_PATH", "rois.json")
+        try:
+            if os.path.exists(roi_path):
+                with open(roi_path, 'r') as f:
+                    all_rois = json.load(f)
+                    self.rois = all_rois.get(self.camera_id, [])
+                print(f"   ROIs Carregadas: {len(self.rois)} filas configuradas da câmara {self.camera_id}")
+            else:
+                print(f"   Sem ficheiro ROIs ({roi_path}) -> As filas não serão publicadas.")
+        except Exception as e:
+            print(f"   ⚠️  Erro a ler ROIs: {e}")
         
         # Configurar MQTT
         self.mqtt_client = self._setup_mqtt()
@@ -203,24 +243,17 @@ class CameraMQTTPublisher:
         # O count final deve vir diretamente do YOLO ou Model Count, e não de nós juntarmos células.
         final_count = int(round(total_people))
         
-        event = {
-            "event_id": str(uuid.uuid4()),
-            "event_type": "crowd_density",
-            "timestamp": datetime.now().isoformat() + "Z",
-            "level": self.level,
-            "grid_data": grid_data,
-            "total_people": final_count,
-            "metadata": {
-                "grid_resolution": grid_resolution,
-                "update_interval": 10,
-                "camera_id": self.camera_id,
-                "coordinate_unit": coordinate_unit
-            }
-        }
+        # Usar Schema Unificado (Refatoração para Reliability)
+        event = CrowdDensityEvent.create(
+            camera_id=self.camera_id,
+            level=self.level,
+            grid_data=grid_data,
+            total_people=final_count
+        )
         
         return event
     
-    def publish_event_data(self, density_map, count, boxes=None, grid_resolution=10):
+    def publish_event_data(self, density_map, count, boxes=None, grid_resolution=10, wait_time_sec=0):
         """
         Publica os dados de densidade processados externamente.
         
@@ -229,6 +262,7 @@ class CameraMQTTPublisher:
             count: Contagem total já calculada
             boxes: Array the bouding boxes, se existente
             grid_resolution: Resolução para o grid
+            wait_time_sec: Tempo de espera calculado (segundos)
         """
         if not self.mqtt_client or not self.mqtt_connected:
             return False
@@ -238,18 +272,65 @@ class CameraMQTTPublisher:
                 return False
                 
             event = self.generate_crowd_density_event(density_map, count, boxes=boxes, grid_resolution=grid_resolution)
+            event["metadata"]["wait_time_sec"] = int(wait_time_sec)
             
             payload = json.dumps(event, ensure_ascii=False)
             
             self.mqtt_client.publish(MQTT_TOPIC_ALL_EVENTS, payload, qos=0)
             self.mqtt_client.publish(MQTT_TOPIC_HEATMAP, payload, qos=0)
             
-            print(f"📤 Evento publicado: {int(event['total_people'])} pessoas (camera: {self.camera_id})")
+            print(f"📤 Evento congestion publicado: {int(event['total_people'])} pessoas (camera: {self.camera_id})")
+            
+            # 2. Publicar eventos de FILA usando as ROIs
+            self._publish_queue_events(boxes, wait_time_sec=wait_time_sec)
+            
             return True
             
         except Exception as e:
             print(f"❌ Erro ao publicar evento: {e}")
             return False
+            
+    def _publish_queue_events(self, boxes, wait_time_sec=0):
+        """Avalia cada bounding box contra os polígonos das filas (ROIs) e publica queue_updates."""
+        if not self.rois or boxes is None:
+            return
+            
+        # Obter os centros (base) das pessoas identificadas
+        points = []
+        for box in boxes:
+            x1, y1, x2, y2 = box
+            cx = int((x1 + x2) / 2)
+            cy = int(y2)  # Base da caixa (pés da pessoa)
+            points.append((cx, cy))
+            
+        # Avaliar contra cada ROI (Fila)
+        for roi in self.rois:
+            poly = np.array(roi["polygon"], np.int32)
+            count = 0
+            
+            # Point in Polygon
+            for pt in points:
+                # >= 0 significa dentro ou na borda do polígono
+                if cv2.pointPolygonTest(poly, pt, False) >= 0:
+                    count += 1
+            
+            queue_event = {
+                "event_id": str(uuid.uuid4()),
+                "event_type": "queue_update",
+                "location_type": roi["type"],
+                "location_id": roi["id"],
+                "queue_length": count,
+                "timestamp": datetime.now().isoformat() + "Z",
+                "wait_time_sec": int(wait_time_sec),
+                "metadata": {
+                    "camera_id": self.camera_id
+                }
+            }
+            
+            payload = json.dumps(queue_event, ensure_ascii=False)
+            # Publica para o tópico das filas que o WaitTime-Service escuta
+            self.mqtt_client.publish("stadium/events/queues", payload, qos=0)
+            print(f"   📊 Fila {roi['id']} ({roi['type']}): {count} pessoas")
     
     def disconnect(self):
         """Desconecta do broker MQTT"""
