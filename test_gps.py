@@ -9,13 +9,12 @@ MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
 TOPIC = "stadium/location/gps"
 
-# Create a fixed set of fake user IDs
-USER_IDS = [str(uuid.uuid4()) for _ in range(50)]
+# Create a larger set of fake user IDs
+USER_IDS = [str(uuid.uuid4()) for _ in range(1000)]
 
-# Dragão base coordinates for walking simulation
-# Somewhere near stadium
-BASE_LAT = 41.1617
-BASE_LNG = -8.5836
+# Dragão base coordinates - Expanded to UA Campus area
+BASE_LAT = 40.6300
+BASE_LNG = -8.6558
 
 def create_client():
     client = mqtt.Client(client_id=f"gps_mock_{uuid.uuid4().hex[:6]}")
@@ -28,15 +27,14 @@ def main():
     print(f"Conectado mock a {MQTT_BROKER}:{MQTT_PORT} no tópico {TOPIC}")
     
     try:
-        active_this_round = random.sample(USER_IDS, 25)
         while True:
-            # Pick a random subset of users to update this tick
-            for uid in active_this_round:
+            # Pick a larger subset of users to update this tick for higher density
+            active_this_round = random.sample(USER_IDS, 500)
             
-                # Add some random walk variance to base coords
-                # Rough approximation: 0.0001 is ~10 meters
-                lat = BASE_LAT + random.uniform(-0.0005, 0.0005)
-                lng = BASE_LNG + random.uniform(-0.0005, 0.0005)
+            for uid in active_this_round:
+                # Expanded range to cover the entire UA Campus (+/- 0.005 deg ~ 500m)
+                lat = BASE_LAT + random.uniform(-0.005, 0.005)
+                lng = BASE_LNG + random.uniform(-0.005, 0.005)
                 
                 payload = {
                     "user_id": uid,
@@ -48,7 +46,7 @@ def main():
                 client.publish(TOPIC, json.dumps(payload))
                 
             print(f"Publicados {len(active_this_round)} eventos GPS falsos.")
-            time.sleep(2)
+            time.sleep(10) # Slower updates for better performance
             
     except KeyboardInterrupt:
         print("\nSaindo...")

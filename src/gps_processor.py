@@ -18,15 +18,15 @@ QUEUE_TOPIC = "stadium/events/queues"
 # Estado
 # user_id -> {"lat": float, "lng": float, "timestamp": float}
 active_users = {}
-USER_TTL_SECONDS = 30
-GRID_RESOLUTION = 10  # Metros
+USER_TTL_SECONDS = 20
+GRID_RESOLUTION = 5  # Metros
 UPDATE_INTERVAL = 10  # Segundos
 
 # Helper para converter Lat/Lng WGS84 para coordenadas cartesianas locais (EPSG:3763 - PT-TM06)
 # O Map-Service costuma usar uma projeção do género, mas vamos usar um transformer simples para X/Y em metros
 # Se o Dragão usar Coordenadas Locais relativas a um ponto base:
-BASE_LAT = 41.1617
-BASE_LNG = -8.5836
+BASE_LAT = 40.6300
+BASE_LNG = -8.6558
 
 def latlng_to_meters(lat, lng):
     # Muito aproximado: 1 grau de lat ~ 111km, 1 grau lng ~ 111km * cos(lat)
