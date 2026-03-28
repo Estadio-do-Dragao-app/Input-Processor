@@ -1,12 +1,15 @@
 FROM python:3.12-slim
 
-# Install system dependencies
+# Install system dependencies (for OpenCV headless mode)
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
+    libglvnd0 \
+    libglx0 \
     libgl1 \
+    libgomp1 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -26,11 +29,16 @@ RUN pip install --no-cache-dir --default-timeout=1000 \
 RUN pip install --no-cache-dir --default-timeout=1000 \
     ultralytics
 
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Copy source code and config
 COPY . /app/
 
-# The video is already in /app/src/Video_Project_3.mp4 from the COPY step
-WORKDIR /app/src
+# Ensure src directory exists and scripts are executable
+WORKDIR /app
+RUN chmod +x src/*.py 2>/dev/null || true
 
-# Default command for cantina simulation
-CMD ["python", "main.py", "--video", "Video_Project_3.mp4", "--camera-id", "CAM_CANTINA", "--direction", "right", "--mqtt-broker", "mosquitto", "--headless"]
+# Default command
+CMD ["python3", "-u", "src/main.py"]
