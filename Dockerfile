@@ -36,14 +36,16 @@ RUN pip install --no-cache-dir --default-timeout=1000 \
 RUN pip install --no-cache-dir --default-timeout=1000 \
     ultralytics
 
-# Step 3: Install requirements.txt dependencies
+# Copy requirements and install
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# NOW copy source code (this changes frequently, so it's last)
+# Copy source code and config
 COPY . /app/
 
-# Ensure scripts are executable
+# Ensure src directory exists and scripts are executable
+WORKDIR /app
 RUN chmod +x src/*.py 2>/dev/null || true
 
-# Default command (camera-simulator/main.py; gps-processor uses docker-compose override)
+# Default command
 CMD ["python3", "-u", "src/main.py"]
