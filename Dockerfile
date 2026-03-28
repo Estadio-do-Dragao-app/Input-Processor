@@ -8,11 +8,15 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     libglvnd0 \
     libglx0 \
+    libgl1 \
     libgomp1 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Copy requirements FIRST (rarely changes)
+COPY requirements.txt .
 
 # Step 1: Install smaller/common dependencies first (cached separately)
 RUN pip install --no-cache-dir --default-timeout=1000 \
@@ -28,11 +32,14 @@ RUN pip install --no-cache-dir --default-timeout=1000 \
 RUN pip install --no-cache-dir --default-timeout=1000 \
     ultralytics
 
-# Copy source code and config
+# Step 3: Install requirements.txt dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# NOW copy source code (this changes frequently, so it's last)
 COPY . /app/
 
-# The video is already in /app/src/Video_Project_3.mp4 from the COPY step
-WORKDIR /app/src
+# Ensure scripts are executable
+RUN chmod +x src/*.py 2>/dev/null || true
 
-# Default command for cantina simulation
-CMD ["python", "main.py", "--video", "Video_Project_3.mp4", "--camera-id", "CAM_CANTINA", "--direction", "right", "--mqtt-broker", "mosquitto", "--headless"]
+# Default command (camera-simulator/main.py; gps-processor uses docker-compose override)
+CMD ["python3", "-u", "src/main.py"]
