@@ -37,6 +37,7 @@ RUN pip install --no-cache-dir --default-timeout=1000 \
     ultralytics
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 # Step 3: Install requirements.txt dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -50,15 +51,21 @@ RUN chmod +x src/*.py 2>/dev/null || true
 =======
 # Copy requirements and install
 COPY requirements.txt .
+=======
+# Step 3: Install requirements.txt dependencies
+>>>>>>> 978851c (dockerFile change)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code and config
+# NOW copy source code (this changes frequently, so it's last)
 COPY . /app/
 
-# Ensure src directory exists and scripts are executable
-WORKDIR /app
+# Ensure scripts are executable
 RUN chmod +x src/*.py 2>/dev/null || true
 
+<<<<<<< HEAD
 # Default command
 >>>>>>> 7762f37 (Resolve merge conflict - use remote Dockerfile)
+=======
+# Default command (camera-simulator/main.py; gps-processor uses docker-compose override)
+>>>>>>> 978851c (dockerFile change)
 CMD ["python3", "-u", "src/main.py"]
