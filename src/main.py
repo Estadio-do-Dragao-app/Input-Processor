@@ -3,6 +3,7 @@ import numpy as np
 import argparse
 import time
 import sys
+import os
 from pathlib import Path
 import threading
 import paho.mqtt.client as mqtt
@@ -27,8 +28,11 @@ except ImportError:
 def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Fan App - Real-time Crowd Counting')
-    parser.add_argument('--mqtt-broker', default='localhost', help='MQTT broker host')
-    parser.add_argument('--mqtt-port', type=int, default=1883, help='MQTT broker port')
+    # Read MQTT broker from environment variable or use command-line arg
+    mqtt_broker_env = os.getenv('MQTT_BROKER_HOST', 'localhost')
+    mqtt_port_env = int(os.getenv('MQTT_BROKER_PORT', '1883'))
+    parser.add_argument('--mqtt-broker', default=mqtt_broker_env, help='MQTT broker host')
+    parser.add_argument('--mqtt-port', type=int, default=mqtt_port_env, help='MQTT broker port')
     parser.add_argument('--camera-id', default='CAM_001', help='Camera identifier')
     parser.add_argument('--level', type=int, default=0, choices=[0, 1], help='Stadium level')
     parser.add_argument('--publish-interval', type=int, default=10, help='MQTT publish interval (seconds)')

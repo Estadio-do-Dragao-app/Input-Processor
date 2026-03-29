@@ -1,5 +1,9 @@
 FROM python:3.12-slim
 
+# Disable Qt/GUI for headless OpenCV
+ENV QT_QPA_PLATFORM=offscreen
+ENV DISPLAY=
+
 # Install system dependencies (for OpenCV headless mode)
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
