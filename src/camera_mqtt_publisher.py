@@ -33,14 +33,14 @@ class CrowdDensityEvent:
             }
         }
 
-print("🚀 LOADED UPDATED MODULE: camera_mqtt_publisher.py (ROI QUEUE CAPABLE)")
+print("LOADED UPDATED MODULE: camera_mqtt_publisher.py (ROI QUEUE CAPABLE)")
 
 # Importar calibração de câmera
 try:
     from camera_calibration import CameraCalibration
     CALIBRATION_AVAILABLE = True
 except ImportError:
-    print("⚠️  camera_calibration não disponível - coordenadas em pixels")
+    print("camera_calibration não disponível - coordenadas em pixels")
     CALIBRATION_AVAILABLE = False
 
 # Importar MQTT client
@@ -74,7 +74,7 @@ class CameraMQTTPublisher:
         self.mqtt_port = mqtt_port
         self.mqtt_connected = False
         
-        print(f"📷 Publisher iniciado para {camera_id} (Level {level})")
+        print(f"Publisher iniciado para {camera_id} (Level {level})")
         
         # Carregar calibração da câmera
         if CALIBRATION_AVAILABLE:
@@ -82,7 +82,7 @@ class CameraMQTTPublisher:
                 self.calibration = CameraCalibration(camera_id)
                 print(f"   Calibração: Ativa (coordenadas em metros)")
             except Exception as e:
-                print(f"   ⚠️  Calibração falhou: {e}")
+                print(f"   Calibração falhou: {e}")
                 print(f"   Usando coordenadas em pixels")
                 self.calibration = None
         else:
@@ -101,7 +101,7 @@ class CameraMQTTPublisher:
             else:
                 print(f"   Sem ficheiro ROIs ({roi_path}) -> As filas não serão publicadas.")
         except Exception as e:
-            print(f"   ⚠️  Erro a ler ROIs: {e}")
+            print(f"    Erro a ler ROIs: {e}")
         
         # Configurar MQTT
         self.mqtt_client = self._setup_mqtt()
@@ -109,7 +109,7 @@ class CameraMQTTPublisher:
     def _setup_mqtt(self):
         """Configura e conecta ao broker MQTT"""
         if mqtt is None:
-            print("⚠️  MQTT desativado (paho-mqtt não instalado)")
+            print("MQTT desativado (paho-mqtt não instalado)")
             return None
         
         try:
@@ -133,30 +133,30 @@ class CameraMQTTPublisher:
             client.on_disconnect = self._on_disconnect
             
             # Conectar
-            print(f"🔌 Conectando ao broker MQTT: {self.mqtt_broker}:{self.mqtt_port}")
+            print(f"Conectando ao broker MQTT: {self.mqtt_broker}:{self.mqtt_port}")
             client.connect(self.mqtt_broker, self.mqtt_port, keepalive=60)
             client.loop_start()
             
             return client
             
         except Exception as e:
-            print(f"⚠️  Falha ao conectar MQTT: {e}")
-            print(f"   Continuando sem publicação MQTT...")
+            print(f"Falha ao conectar MQTT: {e}")
+            print(f"Continuando sem publicação MQTT...")
             return None
     
     def _on_connect(self, client, userdata, flags, rc, *args):
         """Callback quando conecta ao broker"""
         if rc == 0:
             self.mqtt_connected = True
-            print(f"✅ Conectado ao broker MQTT")
+            print(f"Conectado ao broker MQTT")
         else:
-            print(f"❌ Falha na conexão MQTT (código {rc})")
+            print(f"Falha na conexão MQTT (código {rc})")
     
     def _on_disconnect(self, client, userdata, rc, *args):
         """Callback quando desconecta"""
         self.mqtt_connected = False
         if rc != 0:
-            print(f"⚠️  Conexão MQTT perdida (código {rc})")
+            print(f"Conexão MQTT perdida (código {rc})")
     
     def density_map_to_grid_data(self, density_map, grid_resolution=10):
         """
@@ -279,7 +279,7 @@ class CameraMQTTPublisher:
             self.mqtt_client.publish(MQTT_TOPIC_ALL_EVENTS, payload, qos=0)
             self.mqtt_client.publish(MQTT_TOPIC_HEATMAP, payload, qos=0)
             
-            print(f"📤 Evento congestion publicado: {int(event['total_people'])} pessoas (camera: {self.camera_id})")
+            print(f"Evento congestion publicado: {int(event['total_people'])} pessoas (camera: {self.camera_id})")
             
             # 2. Publicar eventos de FILA usando as ROIs
             self._publish_queue_events(boxes, wait_time_sec=wait_time_sec)
@@ -287,25 +287,33 @@ class CameraMQTTPublisher:
             return True
             
         except Exception as e:
-            print(f"❌ Erro ao publicar evento: {e}")
+            print(f"Erro ao publicar evento: {e}")
             return False
             
     def _publish_queue_events(self, boxes, wait_time_sec=0):
         """Avalia cada bounding box contra os polígonos das filas (ROIs) e publica queue_updates."""
-        if not self.rois or boxes is None:
+        if not self.rois or boxes is None or len(boxes) == 0:
             return
             
-        # Obter os centros (base) das pessoas identificadas
-        points = []
+        # Obter os centros (base) das pessoas identificadas em PIXELS
+        pixel_points = []
         for box in boxes:
             x1, y1, x2, y2 = box
-            cx = int((x1 + x2) / 2)
-            cy = int(y2)  # Base da caixa (pés da pessoa)
-            points.append((cx, cy))
+            cx = float((x1 + x2) / 2)
+            cy = float(y2)  # Base da caixa (pés da pessoa)
+            pixel_points.append({"x": cx, "y": cy, "count": 1})
+        
+        # Converter pontos para METROS se calibração disponível
+        if self.calibration:
+            meter_points = self.calibration.transform_grid_data(pixel_points)
+            points = [(pt["x"], pt["y"]) for pt in meter_points]
+        else:
+            # Se sem calibração, usar pixels diretamente como fallback
+            points = [(pt["x"], pt["y"]) for pt in pixel_points]
             
-        # Avaliar contra cada ROI (Fila)
+        # Avaliar contra cada ROI (Fila) - ROIs estão em METROS
         for roi in self.rois:
-            poly = np.array(roi["polygon"], np.int32)
+            poly = np.array(roi["polygon"], np.float32)
             count = 0
             
             # Point in Polygon
@@ -330,7 +338,7 @@ class CameraMQTTPublisher:
             payload = json.dumps(queue_event, ensure_ascii=False)
             # Publica para o tópico das filas que o WaitTime-Service escuta
             self.mqtt_client.publish("stadium/events/queues", payload, qos=0)
-            print(f"   📊 Fila {roi['id']} ({roi['type']}): {count} pessoas")
+            print(f"   Fila {roi['id']} ({roi['type']}): {count} pessoas")
     
     def disconnect(self):
         """Desconecta do broker MQTT"""
