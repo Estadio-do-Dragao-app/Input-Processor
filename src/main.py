@@ -34,14 +34,18 @@ def main():
     parser.add_argument('--mqtt-broker', default=mqtt_broker_env, help='MQTT broker host')
     parser.add_argument('--mqtt-port', type=int, default=mqtt_port_env, help='MQTT broker port')
     parser.add_argument('--camera-id', default='CAM_001', help='Camera identifier')
-    parser.add_argument('--level', type=int, default=0, choices=[0, 1], help='Stadium level')
+    parser.add_argument('--level', type=int, default=0, help='Logical zone id (kept as "level" for event schema compatibility)')
     parser.add_argument('--publish-interval', type=int, default=10, help='MQTT publish interval (seconds)')
     parser.add_argument('--no-mqtt', action='store_true', help='Disable MQTT publishing')
-    parser.add_argument('--mode', type=str, default='yolo', choices=['yolo', 'density'], help='Detection mode: yolo or density')
+    parser.add_argument('--mode', type=str, default='yolo', choices=['yolo', 'density', 'ssdlite'], help='Detection mode: yolo, density, or ssdlite')
     parser.add_argument('--headless', action='store_true', help='Disable OpenCV GUI window')
     parser.add_argument('--subscribe-topic', type=str, default='', help='If provided, listen to this MQTT topic for JPEG camera frames instead of USB.')
     parser.add_argument('--video', type=str, default=None, help='Path to input video file')
     parser.add_argument('--output-video', type=str, default=None, help='Path to save overlay video')
+    parser.add_argument('--camera-index', type=int, default=0, help='Index of local webcam device (default: 0)')
+    parser.add_argument('--ssdlite-model-path', type=str, default=os.getenv('SSDLITE_MODEL_PATH', '../ssdlite_mobilenetv3small_pt_coco_person_300_qdq_int8.onnx-STM32MP257F-DK-code/ssdlite_mobilenetv3small_pt_coco_person_300_qdq_int8_OE_3_3_1.onnx'), help='Path to SSDLite ONNX model file')
+    parser.add_argument('--ssdlite-conf', type=float, default=0.55, help='Confidence threshold for SSDLite person detections')
+    parser.add_argument('--ssdlite-nms-iou', type=float, default=0.45, help='IoU threshold for SSDLite NMS')
     parser.add_argument('--spacing', type=int, default=30, help='Estimated pixels per person in queue')
     parser.add_argument('--service-rate', type=float, default=1.0, help='Default service rate (people/min)')
     parser.add_argument('--direction', type=str, default='right', choices=['right', 'left', 'up', 'down'], help='Queue movement direction')
@@ -55,7 +59,7 @@ def main():
     print("=" * 60)
     print(f"Camera ID: {args.camera_id}")
     print(f"Mode: {args.mode.upper()}")
-    print(f"Level: {args.level}")
+    print(f"Zone ID (level): {args.level}")
     
     if not args.no_mqtt and MQTT_AVAILABLE:
         print(f"MQTT Broker: {args.mqtt_broker}:{args.mqtt_port}")
@@ -70,7 +74,13 @@ def main():
     # 1. Initialize Crowd Counter (Loads model ONCE)
     model_path = "model/zip_n_model_quant.onnx"
     try:
-        counter = CrowdCounter(mode=args.mode, model_path=model_path)
+        counter = CrowdCounter(
+            mode=args.mode,
+            model_path=model_path,
+            ssdlite_model_path=args.ssdlite_model_path,
+            ssdlite_conf=args.ssdlite_conf,
+            ssdlite_nms_iou=args.ssdlite_nms_iou,
+        )
     except Exception as e:
         print(f"❌ Falha crítica ao iniciar CrowdCounter: {e}")
         return 1
@@ -139,9 +149,9 @@ def main():
         print(f"▶️ À espera de imagens MQTT em: {args.subscribe_topic}")
     else:
         # Try local camera
-        cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(args.camera_index)
         if not cap.isOpened():
-            print("⚠️ Não foi possivel abrir a webcam física (/dev/video0).")
+            print(f"⚠️ Não foi possivel abrir a webcam física (index={args.camera_index}).")
             print("🔧 Iniciando modo SIMULAÇÃO com imagem de teste (yolo_1280.jpg)...")
             mock_image_path = Path(__file__).parent.parent / "yolo_1280.jpg"
             if not mock_image_path.exists():

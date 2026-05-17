@@ -19,3 +19,24 @@ uv is a package manager for python, there are no problems if you install it glob
 pip install uv; # you only need to do this once
 uv sync; # install the packages
 ```
+
+## Real camera with SSDLite (STM32 export ONNX)
+
+To run a real USB camera with the `ssdlite_mobilenetv3small...` ONNX model:
+
+```sh
+cd Input-Processor
+bash scripts/run_real_ssdlite.sh CAM_UA_001 0 0 10
+```
+
+Args are:
+- `CAM_UA_001`: camera id sent in MQTT metadata
+- `0`: zone id (`level` field is kept in events for compatibility)
+- `0`: local camera index (`/dev/video0`; use `1` for `/dev/video1`, etc.)
+- `10`: publish interval in seconds
+
+If the model path is different, set:
+
+```sh
+export SSDLITE_MODEL_PATH="/absolute/or/relative/path/to/model.onnx"
+```

@@ -64,7 +64,7 @@ class CameraMQTTPublisher:
         
         Args:
             camera_id: Identificador da câmera (ex: "CAM_NORTE_L0")
-            level: Nível do estádio (0 ou 1)
+            level: Identificador lógico de zona/contexto (campo mantido por compatibilidade de schema)
             mqtt_broker: Host do broker MQTT
             mqtt_port: Porta do broker MQTT
         """
