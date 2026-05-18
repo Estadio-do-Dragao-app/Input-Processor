@@ -32,8 +32,10 @@ RUN pip install --no-cache-dir --default-timeout=1000 \
     typer \
     onnxruntime
 
-# Step 2: Install heavy dependencies (Torch/Ultralytics) with increased timeout
+# Step 2: Install heavy dependencies (Torch/Ultralytics CPU-only) with increased timeout
 RUN pip install --no-cache-dir --default-timeout=1000 \
+    torch torchvision --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir --default-timeout=1000 \
     ultralytics
 
 # Step 3: Install requirements.txt dependencies
@@ -46,4 +48,4 @@ COPY . /app/
 RUN chmod +x src/*.py 2>/dev/null || true
 
 # Default command (camera-simulator/main.py; gps-processor uses docker-compose override)
-CMD ["python3", "-u", "src/main.py"]
+CMD ["python3", "-u", "src/main.py", "--headless"]

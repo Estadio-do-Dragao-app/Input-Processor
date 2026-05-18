@@ -128,6 +128,11 @@ class CameraMQTTPublisher:
                     clean_session=True
                 )
             
+            username = os.getenv("MQTT_USER")
+            password = os.getenv("MQTT_PASS")
+            if username and password:
+                client.username_pw_set(username, password)
+            
             # Callbacks
             client.on_connect = self._on_connect
             client.on_disconnect = self._on_disconnect
