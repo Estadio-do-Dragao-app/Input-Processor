@@ -7,6 +7,7 @@ import uuid
 import numpy as np
 import cv2
 import os
+import time
 from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 
@@ -113,25 +114,39 @@ class CameraMQTTPublisher:
             return None
         
         try:
+            client_id = f"{self.camera_id}_{uuid.uuid4().hex}"
             # Criar cliente MQTT
             try:
                 # Para versões recentes do paho-mqtt (>= 2.0.0)
                 client = mqtt.Client(
                     mqtt.CallbackAPIVersion.VERSION2,
-                    client_id=f"{self.camera_id}_{int(datetime.now().timestamp())}",
+                    client_id=client_id,
                     clean_session=True
                 )
             except AttributeError:
                 # Para versões antigas
                 client = mqtt.Client(
-                    client_id=f"{self.camera_id}_{int(datetime.now().timestamp())}",
+                    client_id=client_id,
                     clean_session=True
                 )
+
+            client.reconnect_delay_set(min_delay=1, max_delay=30)
             
             username = os.getenv("MQTT_USER")
             password = os.getenv("MQTT_PASS")
             if username and password:
                 client.username_pw_set(username, password)
+
+            # TLS: use CA cert if provided (for port 8883)
+            ca_path = os.getenv("MQTT_CA_CERT")
+            try:
+                if ca_path:
+                    import ssl
+                    client.tls_set(ca_certs=ca_path)
+                    client.tls_insecure_set(False)
+                    print(f"MQTT: TLS enabled, CA={ca_path}")
+            except Exception as e:
+                print(f"MQTT: failed to enable TLS: {e}")
             
             # Callbacks
             client.on_connect = self._on_connect
@@ -141,6 +156,7 @@ class CameraMQTTPublisher:
             print(f"Conectando ao broker MQTT: {self.mqtt_broker}:{self.mqtt_port}")
             client.connect(self.mqtt_broker, self.mqtt_port, keepalive=60)
             client.loop_start()
+            print(f"MQTT client_id={client_id}")
             
             return client
             

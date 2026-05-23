@@ -126,6 +126,17 @@ def main():
         camera_mqtt_client.on_message = on_camera_message
         
         try:
+            # Enable TLS if CA provided
+            ca = os.getenv('MQTT_CA_CERT')
+            try:
+                if ca and args.mqtt_port == 8883:
+                    import ssl
+                    camera_mqtt_client.tls_set(ca_certs=ca)
+                    camera_mqtt_client.tls_insecure_set(False)
+                    print(f"Camera listener: TLS enabled (CA={ca})")
+            except Exception as e:
+                print(f"Camera listener: failed to enable TLS: {e}")
+
             camera_mqtt_client.connect(args.mqtt_broker, args.mqtt_port, 60)
             camera_mqtt_client.subscribe(args.subscribe_topic, qos=0)
             camera_mqtt_client.loop_start()
