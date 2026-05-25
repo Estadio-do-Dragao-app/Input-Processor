@@ -168,7 +168,17 @@ if __name__ == "__main__":
         
     client.on_connect = on_connect
     client.on_message = on_message
-    
+    # Enable TLS if CA is provided
+    ca_path = os.getenv('MQTT_CA_CERT')
+    try:
+        if ca_path and MQTT_PORT == 8883:
+            import ssl
+            client.tls_set(ca_certs=ca_path)
+            client.tls_insecure_set(False)
+            print(f"GPS Processor: TLS enabled for MQTT (CA={ca_path})")
+    except Exception as e:
+        print(f"GPS Processor: failed to enable TLS: {e}")
+
     client.connect(MQTT_BROKER, MQTT_PORT, 60)
     
     # Thread para loop de mensagens
