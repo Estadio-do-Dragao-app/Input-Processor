@@ -2,6 +2,7 @@ import json
 import time
 import os
 import uuid
+import ssl
 from datetime import datetime
 import threading
 from pyproj import Proj, Transformer
@@ -10,7 +11,7 @@ from schemas import CrowdDensityEvent, GridCell, QueueEvent
 
 # Configurações MQTT
 MQTT_BROKER = os.getenv("MQTT_BROKER_HOST", "localhost")
-MQTT_PORT = int(os.getenv("MQTT_BROKER_PORT", 1883))
+MQTT_PORT = int(os.getenv("MQTT_BROKER_PORT", 8883))
 GPS_TOPIC = "stadium/location/gps"
 CONGESTION_TOPIC = "stadium/events/congestion"
 QUEUE_TOPIC = "stadium/events/queues"
@@ -72,6 +73,19 @@ def on_connect(client, userdata, flags, rc, *args):
         print(f"📡 A escutar: {GPS_TOPIC}")
     else:
         print(f"❌ GPS Processor: Falha ao conectar (código {rc})")
+
+
+def configure_mqtt_tls(client):
+    username = os.getenv("MQTT_USER", "services")
+    password = os.getenv("MQTT_PASS", "dragao_mqtt_2026")
+    ca_cert = os.getenv("MQTT_CA_CERT", "")
+
+    client.username_pw_set(username, password)
+    if ca_cert and os.path.exists(ca_cert):
+        client.tls_set(ca_certs=ca_cert, tls_version=ssl.PROTOCOL_TLS_CLIENT)
+        client.tls_insecure_set(False)
+    else:
+        print("GPS Processor: MQTT_CA_CERT não definido; 8883 pode rejeitar a ligação")
 
 def on_message(client, userdata, msg):
     try:
@@ -168,6 +182,7 @@ if __name__ == "__main__":
         
     client.on_connect = on_connect
     client.on_message = on_message
+    configure_mqtt_tls(client)
     
     client.connect(MQTT_BROKER, MQTT_PORT, 60)
     
