@@ -60,6 +60,7 @@ class CameraCalibration:
         """Configuração padrão quando câmera não está no config"""
         self.cam_config = {
             "position": {"x": 0.0, "y": 0.0, "z": 10.0},
+            "stadium_offset": {"x": 0.0, "y": 0.0},
             "orientation": {"pan": 0.0, "tilt": -30.0, "roll": 0.0},
             "fov": {"horizontal": 70.0, "vertical": 55.0},
             "resolution": {"width": 448, "height": 448},
@@ -68,6 +69,7 @@ class CameraCalibration:
                 "y_min": 0.0, "y_max": 50.0
             }
         }
+
     
     def _setup_transformation(self):
         """Pré-calcula parâmetros de transformação"""
@@ -75,6 +77,11 @@ class CameraCalibration:
         self.cam_x = self.position["x"]
         self.cam_y = self.position["y"]
         self.cam_z = self.position["z"]
+
+        # Offset da câmara no referencial do estádio (origem = stadiumCenter no Fanapp)
+        stadium_offset = self.cam_config.get("stadium_offset", {"x": 0.0, "y": 0.0})
+        self.stadium_offset_x = float(stadium_offset.get("x", 0.0))
+        self.stadium_offset_y = float(stadium_offset.get("y", 0.0))
         
         # Orientação (converter para radianos)
         self.pan_rad = np.deg2rad(self.orientation["pan"])
@@ -148,8 +155,9 @@ class CameraCalibration:
         distance_ground = min(distance_ground, 100.0)
         
         # Converter para coordenadas XY do mundo
-        real_x = self.cam_x + distance_ground * np.sin(self.pan_rad + angle_x)
-        real_y = self.cam_y + distance_ground * np.cos(self.pan_rad + angle_x)
+        real_x = self.stadium_offset_x + self.cam_x + distance_ground * np.sin(self.pan_rad + angle_x)
+        real_y = self.stadium_offset_y + self.cam_y + distance_ground * np.cos(self.pan_rad + angle_x)
+
         
         return real_x, real_y
     
