@@ -3,74 +3,24 @@
         "CAM_001": {
             "name": "Camera de Teste",
             "model": "model/zip_n_model_quant.onnx",
-            "input_size": [
-                448,
-                448
-            ],
-            "position": {
-                "x": 0.0,
-                "y": 0.0,
-                "z": 3.0,
-                "unit": "meters"
-            },
-            "orientation": {
-                "pan": 0.0,
-                "tilt": -10.0,
-                "roll": 0.0,
-                "unit": "degrees"
-            },
-            "fov": {
-                "horizontal": 70.0,
-                "vertical": 55.0,
-                "unit": "degrees"
-            },
-            "resolution": {
-                "width": 1024,
-                "height": 672
-            },
-            "coverage_area": {
-                "x_min": -10.0,
-                "x_max": 10.0,
-                "y_min": 0.0,
-                "y_max": 20.0,
-                "unit": "meters"
-            }
+            "input_size": [448, 448],
+            "position": { "x": 0.0, "y": 0.0, "z": 3.0, "unit": "meters" },
+            "stadium_offset": { "x": -40.0, "y": -30.0, "unit": "meters" },
+            "orientation": { "pan": 0.0, "tilt": -10.0, "roll": 0.0, "unit": "degrees" },
+            "fov": { "horizontal": 70.0, "vertical": 55.0, "unit": "degrees" },
+            "resolution": { "width": 1024, "height": 672 },
+            "coverage_area": { "x_min": -10.0, "x_max": 10.0, "y_min": 0.0, "y_max": 20.0, "unit": "meters" }
         },
         "CAM_REAL_001": {
             "name": "Camera Real (Universidade de Aveiro)",
             "model": "../ssdlite_mobilenetv3small_pt_coco_person_300_qdq_int8.onnx-STM32MP257F-DK-code/ssdlite_mobilenetv3small_pt_coco_person_300_qdq_int8_OE_3_3_1.onnx",
-            "input_size": [
-                300,
-                300
-            ],
-            "position": {
-                "x": 0.0,
-                "y": 0.0,
-                "z": 3.0,
-                "unit": "meters"
-            },
-            "orientation": {
-                "pan": 0.0,
-                "tilt": -10.0,
-                "roll": 0.0,
-                "unit": "degrees"
-            },
-            "fov": {
-                "horizontal": 70.0,
-                "vertical": 55.0,
-                "unit": "degrees"
-            },
-            "resolution": {
-                "width": 1920,
-                "height": 1080
-            },
-            "coverage_area": {
-                "x_min": -10.0,
-                "x_max": 10.0,
-                "y_min": 0.0,
-                "y_max": 20.0,
-                "unit": "meters"
-            }
+            "input_size": [300, 300],
+            "position": { "x": 0.0, "y": 0.0, "z": 3.0, "unit": "meters" },
+            "stadium_offset": { "x": 40.0, "y": 30.0, "unit": "meters" },
+            "orientation": { "pan": 0.0, "tilt": -10.0, "roll": 0.0, "unit": "degrees" },
+            "fov": { "horizontal": 70.0, "vertical": 55.0, "unit": "degrees" },
+            "resolution": { "width": 1920, "height": 1080 },
+            "coverage_area": { "x_min": -10.0, "x_max": 10.0, "y_min": 0.0, "y_max": 20.0, "unit": "meters" }
         }
     },
     "system": {

@@ -29,8 +29,8 @@ def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Fan App - Real-time Crowd Counting')
     # Read MQTT broker from environment variable or use command-line arg
-    mqtt_broker_env = os.getenv('MQTT_BROKER_HOST', 'localhost')
-    mqtt_port_env = int(os.getenv('MQTT_BROKER_PORT', '1883'))
+    mqtt_broker_env = os.getenv('MQTT_BROKER_HOST')
+    mqtt_port_env = int(os.getenv('MQTT_BROKER_PORT'))
     parser.add_argument('--mqtt-broker', default=mqtt_broker_env, help='MQTT broker host')
     parser.add_argument('--mqtt-port', type=int, default=mqtt_port_env, help='MQTT broker port')
     parser.add_argument('--camera-id', default='CAM_001', help='Camera identifier')

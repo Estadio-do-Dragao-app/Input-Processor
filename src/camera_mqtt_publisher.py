@@ -7,6 +7,7 @@ import uuid
 import numpy as np
 import cv2
 import os
+import ssl
 import time
 from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
@@ -134,19 +135,10 @@ class CameraMQTTPublisher:
             
             username = os.getenv("MQTT_USER")
             password = os.getenv("MQTT_PASS")
-            if username and password:
-                client.username_pw_set(username, password)
-
-            # TLS: use CA cert if provided (for port 8883)
-            ca_path = os.getenv("MQTT_CA_CERT")
-            try:
-                if ca_path:
-                    import ssl
-                    client.tls_set(ca_certs=ca_path)
-                    client.tls_insecure_set(False)
-                    print(f"MQTT: TLS enabled, CA={ca_path}")
-            except Exception as e:
-                print(f"MQTT: failed to enable TLS: {e}")
+            ca_cert = os.getenv("MQTT_CA_CERT")
+            client.username_pw_set(username, password)
+            client.tls_set(ca_certs=ca_cert, tls_version=ssl.PROTOCOL_TLS_CLIENT)
+            client.tls_insecure_set(False)
             
             # Callbacks
             client.on_connect = self._on_connect
@@ -182,30 +174,38 @@ class CameraMQTTPublisher:
     def density_map_to_grid_data(self, density_map, grid_resolution=10):
         """
         Converte density map para formato de grid_data compatível com o simulador.
+        Reescala as coordenadas do density_map para a resolução da câmara,
+        para que pixel_to_meters as interprete corretamente.
         """
         height, width = density_map.shape
         grid_data = []
-        
-        # Criar grid
+
+        # Fator de escala para coordenadas da câmara original (ex: 256 -> 1024)
+        if self.calibration is not None:
+            scale_x = self.calibration.img_width / float(width)
+            scale_y = self.calibration.img_height / float(height)
+        else:
+            scale_x = 1.0
+            scale_y = 1.0
+
         for y in range(0, height, grid_resolution):
             for x in range(0, width, grid_resolution):
-                # Extrair célula
                 y_end = min(y + grid_resolution, height)
                 x_end = min(x + grid_resolution, width)
                 cell = density_map[y:y_end, x:x_end]
-                
-                # Somar densidade na célula
+
                 cell_count = np.sum(cell)
-                
-                # Apenas células com densidade significativa (Lowered threshold to capture single person)
                 if cell_count > 0.10:
+                    cx = (x + grid_resolution / 2) * scale_x
+                    cy = (y + grid_resolution / 2) * scale_y
                     grid_data.append({
-                        "x": int(x + grid_resolution / 2),
-                        "y": int(y + grid_resolution / 2),
+                        "x": int(cx),
+                        "y": int(cy),
                         "count": int(round(cell_count))
                     })
-        
+
         return grid_data
+
     
     def generate_crowd_density_event(self, density_map, total_people, boxes=None, grid_resolution=10):
         """
