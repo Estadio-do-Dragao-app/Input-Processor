@@ -131,15 +131,10 @@ class CameraMQTTPublisher:
             
             username = os.getenv("MQTT_USER")
             password = os.getenv("MQTT_PASS")
-            ca_cert = os.getenv("MQTT_CA_CERT", "")
-            if username and password:
-                client.username_pw_set(username, password)
-
-            if ca_cert and os.path.exists(ca_cert):
-                client.tls_set(ca_certs=ca_cert, tls_version=ssl.PROTOCOL_TLS_CLIENT)
-                client.tls_insecure_set(False)
-            else:
-                print("   MQTT CA não configurado; a ligação segura pode falhar em 8883")
+            ca_cert = os.getenv("MQTT_CA_CERT")
+            client.username_pw_set(username, password)
+            client.tls_set(ca_certs=ca_cert, tls_version=ssl.PROTOCOL_TLS_CLIENT)
+            client.tls_insecure_set(False)
             
             # Callbacks
             client.on_connect = self._on_connect
