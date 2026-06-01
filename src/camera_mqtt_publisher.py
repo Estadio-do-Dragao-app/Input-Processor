@@ -340,8 +340,10 @@ class CameraMQTTPublisher:
             # Point in Polygon
             for pt in points:
                 # >= 0 significa dentro ou na borda do polígono
-                if cv2.pointPolygonTest(poly, pt, False) >= 0:
+                in_poly = cv2.pointPolygonTest(poly, pt, False) >= 0
+                if in_poly:
                     count += 1
+                print(f"DEBUG {self.camera_id}: pt={pt} in_poly={in_poly} poly={poly}")
             
             queue_event = {
                 "event_id": str(uuid.uuid4()),
